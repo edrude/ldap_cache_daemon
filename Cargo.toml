@@ -1,0 +1,30 @@
+[package]
+name = "ldap_cache_daemon"
+version = "0.1.0"
+edition = "2024"
+description = "A simple LDAP cache daemon which caches group memberships in memory."
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "ldap_cache_daemon"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+ldap3 = "0.11"
+log = "0.4"
+env_logger = "0.11"
+hyper = "1"
+getset = "0.1"
+serial_test = "2.0"
+
+[package.metadata.rpm]
+package = "ldap_cache_daemon"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+ldap_cache_daemon = { path = "/usr/bin/ldap_cache_daemon" }

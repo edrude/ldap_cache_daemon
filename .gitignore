@@ -1,0 +1,44 @@
+# Compiled output
+/target/
+**/*.rs.bk
+
+# Backup files
+*~
+*.swp
+*.swo
+
+# IntelliJ / CLion / VS Code
+.idea/
+.vscode/
+*.code-workspace
+
+# Cargo package
+Cargo.lock
+
+# Binaries and shared libraries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Rustup / Cargo
+/.cargo/
+/rustup/
+
+# Tests and coverage
+/coverage/
+/htmlcov/
+/lcov.info
+
+# Byproducts from cargo-rpm
+.rpm/
+rpm/
+*.rpm
+
+# Misc
+.DS_Store
+Thumbs.db
