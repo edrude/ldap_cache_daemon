@@ -1,0 +1,12 @@
+[Unit]
+Description=LDAP Cache Daemon
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/sysconfig/ldap_cache_daemon
+ExecStart=/opt/ldap_cache_daemon/bin/ldap_cache_daemon
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

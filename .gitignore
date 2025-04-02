@@ -34,11 +34,6 @@ Cargo.lock
 /htmlcov/
 /lcov.info
 
-# Byproducts from cargo-rpm
-.rpm/
-rpm/
-*.rpm
-
 # Misc
 .DS_Store
 Thumbs.db

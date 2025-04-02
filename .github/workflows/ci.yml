@@ -1,31 +1,73 @@
-name: Rust CI
+name: Build RPM
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  check:
-    name: Format, Lint, Test
+  build-rpm:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rocky: [8, 9]
+
+    container:
+      image: rockylinux:${{ matrix.rocky }}
+      options: --privileged
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y --allowerasing openssl-devel rpm-build rpmdevtools gcc make git curl tar gzip
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo 'source $HOME/.cargo/env' >> ~/.bashrc
+          source ~/.cargo/env
+          rustc --version
+          cargo --version
 
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install Clippy
-      run: rustup component add clippy
+      - name: Check out code
+        uses: actions/checkout@v3
 
-    - name: Check formatting
-      run: cargo fmt -- --check
+      - name: Build Rust binary
+        run: |
+          source ~/.cargo/env
+          cargo build --release
+          mkdir -p rpm/SOURCES/ldap_cache_daemon/opt/ldap_cache_daemon/bin
+          cp target/release/ldap_cache_daemon rpm/SOURCES/ldap_cache_daemon/opt/ldap_cache_daemon/bin/
 
-    - name: Lint with Clippy
-      run: cargo clippy -- -D warnings
+      - name: Build RPM
+        run: |
+          rpmdev-setuptree
+          cp rpm/ldap_cache_daemon.spec ~/rpmbuild/SPECS/
+          tar czf ~/rpmbuild/SOURCES/ldap_cache_daemon.tar.gz -C rpm/SOURCES ldap_cache_daemon
+          rpmbuild -ba ~/rpmbuild/SPECS/ldap_cache_daemon.spec
 
-    - name: Run tests
-      run: cargo test --all
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ldap_cache_daemon-rpm-rocky${{ matrix.rocky }}
+          path: ~/rpmbuild/RPMS/x86_64/*.rpm
+
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build-rpm
+    steps:
+      - name: Download all RPM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_rpms
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: all_rpms/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
