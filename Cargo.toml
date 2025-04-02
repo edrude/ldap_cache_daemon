@@ -3,7 +3,8 @@ name = "ldap_cache_daemon"
 version = "0.1.0"
 edition = "2024"
 description = "A simple LDAP cache daemon which caches group memberships in memory."
-license = "GPL-3.0-or-later"
+license = "GPL-2.0-or-later"
+license-file = "LICENSE"
 
 [[bin]]
 name = "ldap_cache_daemon"

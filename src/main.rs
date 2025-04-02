@@ -21,7 +21,12 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::Builder::from_env(env_logger::Env::default().filter_or("LOG_LEVEL", "info")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().filter_or("LOG_LEVEL", "info"))
+        .format(|buf, record| {
+            use std::io::Write;
+            writeln!(buf, "[{} {}] {}", record.level(), record.target(), record.args())
+        })
+        .init();
 
     let config = Arc::new(Config::from_env()?);
     let cache = Arc::new(Mutex::new(HashMap::new()));
