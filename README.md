@@ -2,23 +2,23 @@
 
 `ldap_cache_daemon` is a lightweight Rust-based HTTP service that performs LDAP group membership lookups and caches them in memory. It’s designed for environments where repeated LDAP queries for the same group membership can be optimized with short-term caching.
 
-✅ **Prebuilt RPMs are available for Rocky Linux 8 and 9** — see the [Releases page](https://github.com/edrude/ldap_cache_daemon/releases).
+**Prebuilt RPMs are available for Enterprise Linux 8 and 9** — see the [Releases page](https://github.com/edrude/ldap_cache_daemon/releases).
 
 ---
 
-## ❓ Why
+## Why
 
 The main goal of this project is to **minimize LDAP connection overhead** in systems where group membership information is frequently needed.
 
-- 🔌 A **single LDAP connection** is used during each background refresh cycle, shared across all cached group updates.
-- 🆕 A new LDAP connection is only created the **first time** an uncached group is requested.
-- 🔄 After that, group data is **cached in memory**, and reused until the next refresh interval.
+- A **single LDAP connection** is used during each background refresh cycle, shared across all cached group updates.
+- A new LDAP connection is only created the **first time** an uncached group is requested.
+- After that, group data is **cached in memory**, and reused until the next refresh interval.
 
 This design keeps LDAP traffic light, avoids frequent binds, and reduces load on upstream directory servers.
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 The daemon is configured via environment variables, typically stored in `/etc/sysconfig/ldap_cache_daemon`.
 
@@ -82,7 +82,7 @@ GROUP_SEARCH_BASE=ou=groups,dc=example,dc=com
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Option 1: From GitHub Releases
 
@@ -95,7 +95,7 @@ sudo dnf install ./ldap_cache_daemon-0.1.0-1.el9.x86_64.rpm
 
 ---
 
-## 🚀 Usage
+## Usage
 
 Enable and start the systemd service:
 
@@ -123,16 +123,7 @@ Cached entries will automatically refresh after the configured interval.
 
 ---
 
-## 🛠 Built With
-
-- [Rust](https://www.rust-lang.org/)
-- [Axum](https://docs.rs/axum)
-- [ldap3](https://docs.rs/ldap3)
-- [Systemd](https://www.freedesktop.org/wiki/Software/systemd/)
-
----
-
-## 📜 License
+## License
 
 This project is licensed under the GNU General Public License, version 2 or later (GPL-2.0-or-later).  
 See the [LICENSE](./LICENSE) file for details.
