@@ -27,16 +27,29 @@ A small Rust daemon that caches LDAP lookups.
 mkdir -p %{buildroot}/opt/ldap_cache_daemon/bin
 cp -a opt/ldap_cache_daemon/bin/ldap_cache_daemon %{buildroot}/opt/ldap_cache_daemon/bin/
 
+mkdir -p %{buildroot}/opt/ldap_cache_daemon/etc
+cp -a opt/ldap_cache_daemon/etc/config.yaml %{buildroot}/opt/ldap_cache_daemon/etc/
+
 mkdir -p %{buildroot}/etc/sysconfig
 cp -a etc/sysconfig/ldap_cache_daemon %{buildroot}/etc/sysconfig/
 
 mkdir -p %{buildroot}/usr/lib/systemd/system
 cp -a usr/lib/systemd/system/ldap_cache_daemon.service %{buildroot}/usr/lib/systemd/system/
 
+# Set proper ownership and permissions for security
+chown -R root:root %{buildroot}/opt/ldap_cache_daemon
+chmod 600 %{buildroot}/opt/ldap_cache_daemon/etc/config.yaml
+chmod 755 %{buildroot}/opt/ldap_cache_daemon/bin
+chmod 755 %{buildroot}/opt/ldap_cache_daemon/etc
+chmod 644 %{buildroot}/etc/sysconfig/ldap_cache_daemon
+chmod 644 %{buildroot}/usr/lib/systemd/system/ldap_cache_daemon.service
+
 %files
 %dir /opt/ldap_cache_daemon
 %dir /opt/ldap_cache_daemon/bin
+%dir /opt/ldap_cache_daemon/etc
 /opt/ldap_cache_daemon/bin/ldap_cache_daemon
+%config(noreplace) /opt/ldap_cache_daemon/etc/config.yaml
 
 %config(noreplace) /etc/sysconfig/ldap_cache_daemon
 /usr/lib/systemd/system/ldap_cache_daemon.service
