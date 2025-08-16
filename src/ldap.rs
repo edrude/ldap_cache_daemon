@@ -1,5 +1,5 @@
 use ldap3::{Ldap, LdapConnAsync, LdapError, Scope, SearchEntry};
-use log::{trace, warn};
+use log::{trace, warn, debug};
 
 fn parse_scope(s: &str) -> Result<Scope, String> {
     match s.to_lowercase().as_str() {
@@ -10,14 +10,15 @@ fn parse_scope(s: &str) -> Result<Scope, String> {
 }
 
 pub async fn connect_and_bind(url: &str, bind_dn: &str, password: &str) -> Result<Ldap, LdapError> {
-    trace!("Connecting to LDAP: {}", url);
+    debug!("Connecting to LDAP server: {}", url);
 
     let (conn, mut ldap) = LdapConnAsync::new(url).await?;
     ldap3::drive!(conn);
+    debug!("LDAP connection established successfully");
 
     trace!("Binding to LDAP as {}", bind_dn);
     ldap.simple_bind(bind_dn, password).await?.success()?;
-    trace!("Bound to LDAP as {}", bind_dn);
+    debug!("Successfully bound to LDAP as {}", bind_dn);
 
     Ok(ldap)
 }
@@ -29,17 +30,24 @@ pub async fn query(
     filter: &str,
     attr: &str,
 ) -> Result<Vec<String>, LdapError> {
-    trace!("Search for '{}' in base '{}' with scope '{}'", filter, base, scope);
+    debug!("Executing LDAP search: base='{}', scope='{}', filter='{}', attr='{}'", base, scope, filter, attr);
+    
     let (results, _) = ldap.search(base, parse_scope(scope).unwrap(), filter, &[attr]).await?.success()?;
-    // We should probably do a better job of handing edge cases. program is only designed to work
-    // when a single entry is found. If no entries are found we may want to 404 instead of
-    // returning an empty list
+    
+    // Log the number of results found
     match results.len() {
-        0 => warn!("Found 0 entries for query, returning empty results, but you should know there is no entry in ldap"),
-        n if n > 1 => warn!("Found more than one LDAP entry and we are only designed to look at one"),
-        _ => trace!("Found 1 entry"),
+        0 => {
+            warn!("Found 0 entries for query, returning empty results");
+            debug!("Query details: base='{}', filter='{}', attr='{}'", base, filter, attr);
+        },
+        n if n > 1 => {
+            warn!("Found {} LDAP entries, only designed to handle single entries", n);
+            debug!("Multiple results found for: base='{}', filter='{}'", base, filter);
+        },
+        _ => {
+            debug!("Found 1 LDAP entry as expected");
+        }
     }
-
 
     let mut values = vec![];
 
@@ -47,8 +55,12 @@ pub async fn query(
         let entry = SearchEntry::construct(result);
         if let Some(vals) = entry.attrs.get(attr) {
             values.extend(vals.clone());
+            trace!("Extracted {} values from LDAP entry", vals.len());
+        } else {
+            debug!("No values found for attribute '{}' in LDAP entry", attr);
         }
     }
 
+    debug!("LDAP query completed: found {} values for attribute '{}'", values.len(), attr);
     Ok(values)
 }

@@ -6,7 +6,7 @@ use axum::{
     routing::get,
     Router,
 };
-use log::{debug, info};
+use log::{debug, info, warn};
 
 use crate::{
     AppState,
@@ -23,16 +23,21 @@ pub async fn execute_ldap_query(
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let filter_template = endpoint.search_filter();
     let filter = format!("{}", filter_template.replace("{}", name));
+    
+    debug!("Executing LDAP query: endpoint='{}', name='{}', filter='{}'", endpoint.path(), name, filter);
+    debug!("LDAP search parameters: base='{}', scope='{}', attr='{}'", endpoint.search_base(), endpoint.search_scope(), endpoint.attribute());
 
     let values = query(ldap, endpoint.search_base(), endpoint.search_scope(), &filter, endpoint.attribute())
         .await?;
 
     let mut final_result = values.clone();
+    debug!("Initial LDAP query returned {} values", values.len());
 
     // Apply result processing if configured
     if let Some(processing) = endpoint.result_processing() {
         match processing.r#type().as_str() {
             "dn_translation" => {
+                debug!("Applying DN translation for {} values", values.len());
                 let mut processed_values = vec![];
                 for val in &values {
                     let res = query(ldap, val, "base", "(objectClass=*)", processing.attribute())
@@ -40,13 +45,15 @@ pub async fn execute_ldap_query(
                     processed_values.extend(res);
                 }
                 final_result = processed_values;
+                debug!("DN translation completed: {} -> {} results", values.len(), final_result.len());
             }
             other => {
-                debug!("Unknown processing type: {}", other);
+                warn!("Unknown processing type: {}", other);
             }
         }
     }
 
+    debug!("Final result count: {} values", final_result.len());
     Ok(final_result)
 }
 
@@ -57,7 +64,7 @@ pub async fn start_server(config: Arc<Config>, app_state: Arc<AppState>) -> Resu
     
     // Dynamically create routes for all configured endpoints
     for endpoint in config.endpoints() {
-        info!("Adding route: {} -> generic_handler", endpoint.path());
+        debug!("Adding route: {} -> generic_handler", endpoint.path());
         app = app.route(&format!("{}/:name", endpoint.path()), get(generic_handler));
     }
     
@@ -87,7 +94,7 @@ pub async fn generic_handler(
         .to_string();
     let full_endpoint_path = format!("/{}", endpoint_path);
 
-    info!("Received request for group '{}' on endpoint '{}'", name, full_endpoint_path);
+    debug!("Received request: method='{}', path='{}', name='{}'", request.method(), full_endpoint_path, name);
 
     // Create a unique cache key that includes both endpoint and name
     let cache_key = format!("{}:{}", full_endpoint_path, name);
@@ -97,11 +104,12 @@ pub async fn generic_handler(
         let cache_guard = cache.lock().unwrap();
         if let Some(cached) = cache_guard.get(&cache_key) {
             info!("Cache hit for '{}', returning {} cached results", cache_key, cached.len());
+            debug!("Cache hit details: endpoint='{}', name='{}', result_count={}", full_endpoint_path, name, cached.len());
             return Json(cached.clone());
         }
     }
 
-    info!("Cache miss for '{}', querying LDAP", cache_key);
+    debug!("Cache miss for '{}', querying LDAP", cache_key);
 
     // Find which endpoint this request is for by matching the request path
     let endpoint = config.endpoints()
@@ -109,7 +117,7 @@ pub async fn generic_handler(
         .find(|ep| *ep.path() == full_endpoint_path)
         .expect(&format!("No matching endpoint found for {}", full_endpoint_path));
     
-    info!("Using endpoint: {} with search_base: {}", endpoint.path(), endpoint.search_base());
+    debug!("Using endpoint: {} with search_base: {}", endpoint.path(), endpoint.search_base());
     
     // If not in cache, query LDAP
     let mut ldap = connect_and_bind(config.ldap().url(), config.ldap().bind_dn(), config.ldap().bind_password())
@@ -125,8 +133,17 @@ pub async fn generic_handler(
     {
         let mut cache_guard = cache.lock().unwrap();
         cache_guard.insert(cache_key.clone(), final_result.clone());
-        info!("Cache populated for '{}' with {} results", cache_key, final_result.len());
+        debug!("Cache populated for '{}' with {} results", cache_key, final_result.len());
+        
+        // Log cache size for monitoring
+        let cache_size = cache_guard.len();
+        if cache_size > 100 {
+            warn!("Cache size is large: {} entries", cache_size);
+        } else {
+            debug!("Cache size: {} entries", cache_size);
+        }
     }
 
+    info!("Request completed successfully: endpoint='{}', name='{}', result_count={}", full_endpoint_path, name, final_result.len());
     Json(final_result)
 }

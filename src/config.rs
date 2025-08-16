@@ -1,7 +1,7 @@
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 use std::{env, net::SocketAddr, fs, os::unix::fs::{PermissionsExt, MetadataExt}};
-use log::error;
+use log::{error, debug, warn};
 
 #[derive(Clone, Getters, Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -165,7 +165,7 @@ impl Config {
     fn check_config_permissions(config_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         // Check if permission checks should be skipped
         if env::var("DONTBLAMEME").unwrap_or_default() == "1" {
-            log::warn!("DONTBLAMEME=1 set, skipping config file permission checks");
+            warn!("DONTBLAMEME=1 set, skipping config file permission checks");
             return Ok(());
         }
         
@@ -197,19 +197,25 @@ impl Config {
 
     /// Validate the entire configuration
     fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {
+        debug!("Starting configuration validation");
+        
         // Validate LDAP configuration
         self.ldap.validate()?;
+        debug!("LDAP configuration validation passed");
         
         // Validate server configuration
         self.server.validate()?;
+        debug!("Server configuration validation passed");
         
         // Validate endpoints
         if self.endpoints.is_empty() {
             return Err("No endpoints configured. At least one endpoint is required.".into());
         }
         
+        debug!("Validating {} endpoints", self.endpoints.len());
         for (i, endpoint) in self.endpoints.iter().enumerate() {
             endpoint.validate(i)?;
+            debug!("Endpoint {} validation passed: {}", i, endpoint.path());
         }
         
         // Check for duplicate endpoint paths
@@ -220,23 +226,29 @@ impl Config {
             }
         }
         
+        debug!("Configuration validation completed successfully");
         Ok(())
     }
 
     pub fn get_config() -> Result<Self, Box<dyn std::error::Error>> {
         let config_file = env::var("CONFIG_FILE").unwrap_or_else(|_| "/opt/ldap_cache_daemon/etc/config.yaml".to_string());
+        debug!("Loading configuration from: {}", config_file);
 
         // Check file permissions and ownership before reading
         Self::check_config_permissions(&config_file)?;
+        debug!("Configuration file permissions check passed");
 
         let content = fs::read_to_string(config_file)
             .map_err(|e| format!("Failed to read config file: {e}"))?;
+        debug!("Configuration file read successfully");
 
         let config: Config = serde_yaml::from_str(&content)
             .map_err(|e| format!("Failed to parse YAML config: {e}"))?;
+        debug!("YAML configuration parsed successfully");
 
         // Validate the configuration
         config.validate()?;
+        debug!("Configuration validation completed");
 
         Ok(config)
     }
