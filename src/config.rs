@@ -113,7 +113,7 @@ impl EndpointConfig {
         }
         
         // Validate search scope
-        let valid_scopes = ["base", "one", "subtree"];
+        let valid_scopes = ["base", "subtree"];
         if !valid_scopes.contains(&self.search_scope.as_str()) {
             return Err(format!("Endpoint {}: search_scope must be one of: {}", 
                 index, valid_scopes.join(", ")).into());
