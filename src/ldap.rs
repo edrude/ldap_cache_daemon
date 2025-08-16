@@ -1,6 +1,14 @@
 use ldap3::{Ldap, LdapConnAsync, LdapError, Scope, SearchEntry};
 use log::{trace, warn};
 
+fn parse_scope(s: &str) -> Result<Scope, String> {
+    match s.to_lowercase().as_str() {
+        "base" => Ok(Scope::Base),
+        "subtree" => Ok(Scope::Subtree),
+        _ => Err(format!("Invalid scope: {}", s)),
+    }
+}
+
 pub async fn connect_and_bind(url: &str, bind_dn: &str, password: &str) -> Result<Ldap, LdapError> {
     trace!("Connecting to LDAP: {}", url);
 
@@ -14,54 +22,33 @@ pub async fn connect_and_bind(url: &str, bind_dn: &str, password: &str) -> Resul
     Ok(ldap)
 }
 
-pub async fn get_group_member_dns(
+pub async fn query(
     ldap: &mut Ldap,
-    group_dn: &str,
+    base: &str,
+    scope: &str,
+    filter: &str,
+    attr: &str,
 ) -> Result<Vec<String>, LdapError> {
-    trace!("Searching for group members in {}", group_dn);
-    let (entries, _) = ldap
-        .search(group_dn, Scope::Base, "(objectClass=*)", vec!["member"])
-        .await?
-        .success()?;
+    trace!("Search for '{}' in base '{}' with scope '{}'", filter, base, scope);
+    let (results, _) = ldap.search(base, parse_scope(scope).unwrap(), filter, &[attr]).await?.success()?;
+    // We should probably do a better job of handing edge cases. program is only designed to work
+    // when a single entry is found. If no entries are found we may want to 404 instead of
+    // returning an empty list
+    match results.len() {
+        0 => warn!("Found 0 entries for query, returning empty results, but you should know there is no entry in ldap"),
+        n if n > 1 => warn!("Found more than one LDAP entry and we are only designed to look at one"),
+        _ => trace!("Found 1 entry"),
+    }
 
-    trace!("Found {} entries", entries.len());
 
-    let mut members = vec![];
-    for entry in entries {
-        let search = SearchEntry::construct(entry);
-        if let Some(vals) = search.attrs.get("member") {
-            trace!("Found {} members", vals.len());
-            members.extend(vals.clone());
+    let mut values = vec![];
+
+    for result in results {
+        let entry = SearchEntry::construct(result);
+        if let Some(vals) = entry.attrs.get(attr) {
+            values.extend(vals.clone());
         }
     }
 
-    Ok(members)
-}
-
-pub async fn resolve_uids(ldap: &mut Ldap, member_dns: &[String]) -> Vec<String> {
-    let mut uids = Vec::new();
-
-    for dn in member_dns {
-        trace!("Searching for uid in {}", dn);
-
-        if let Ok(result) = ldap
-            .search(dn, Scope::Base, "(objectClass=*)", vec!["uid"])
-            .await
-        {
-            if let Ok((entries, _)) = result.success() {
-                trace!("Found {} entries", entries.len());
-                for entry in entries {
-                    let user = SearchEntry::construct(entry);
-                    if let Some(vals) = user.attrs.get("uid") {
-                        trace!("Resolved uid(s): {:?} for {}", vals, dn);
-                        uids.extend(vals.clone());
-                    }
-                }
-            }
-        } else {
-            warn!("Failed to search for uid in {}", dn);
-        }
-    }
-
-    uids
+    Ok(values)
 }

@@ -1,0 +1,26 @@
+ldap:
+  url: "ldaps://ldap.example.com:636"
+  bind_dn: "cn=admin,dc=example,dc=com"
+  bind_password: "your_secure_password_here"
+
+server:
+  bind_addr: "127.0.0.1:8080"
+  refresh_interval_secs: 180
+
+endpoints:
+  # Group membership endpoint with DN resolution
+  - path: "/group_members"
+    search_base: "ou=groups,dc=example,dc=com"
+    search_filter: "(cn={})"
+    search_scope: "subtree"
+    attribute: "member"
+    result_processing:
+      type: "dn_translation"
+      attribute: "uid"
+
+  # User maildrop endpoint (no result processing)
+  - path: "/user_maildrop"
+    search_base: "ou=users,dc=example,dc=com"
+    search_filter: "(uid={})"
+    search_scope: "subtree"
+    attribute: "maildrop"

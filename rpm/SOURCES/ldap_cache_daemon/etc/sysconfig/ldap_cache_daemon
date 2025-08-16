@@ -1,7 +1,4 @@
 # Environment file for ldap_cache_daemon
-# Place this file at /etc/sysconfig/ldap_cache_daemon
-# It will be loaded by systemd and read by the application via `Config::from_env`
-
 ########################################
 # General logging
 ########################################
@@ -9,43 +6,12 @@
 # Sets the log verbosity for the daemon.
 # Valid values: trace, debug, info, warn, error
 # Default: info
-# LDAP_CACHE_LOG_LEVEL=info
-
-
-########################################
-# LDAP server configuration
-########################################
-
-# URL of the LDAP server. Must include the scheme.
-# e.g., ldap://ldap.example.com or ldaps://ldap.example.com:636
-LDAP_URL=ldaps://ldap.example.com:636
-
-# Distinguished Name (DN) used to bind to the LDAP server.
-# This should have permission to search for group and user info.
-LDAP_BIND_DN=cn=admin,dc=example,dc=com
-
-# Password for the bind DN.
-LDAP_PASSWORD=secret
-
+# LOG_LEVEL=info
 
 ########################################
-# Group lookup configuration
+# Configuration overrides
 ########################################
 
-# Base DN where group entries live.
-# This will be used to construct queries like: cn=groupname,<base>
-GROUP_SEARCH_BASE=ou=groups,dc=example,dc=com
-
-
-########################################
-# Server configuration
-########################################
-
-# Address and port the daemon listens on.
-# Format: IP:PORT — e.g., 127.0.0.1:8080 or 0.0.0.0:9000
-# Default: 127.0.0.1:8080
-# BIND_ADDR=127.0.0.1:8080
-
-# How often to refresh cached group data in seconds.
-# Default: 180
-# REFRESH_INTERVAL_SECS=180
+# Override the default config file location
+# Default: /opt/ldap_cache_daemon/etc/config.yaml
+# CONFIG_FILE=/opt/ldap_cache_daemon/etc/config.yaml
